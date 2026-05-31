@@ -2,7 +2,7 @@ import type { GameNode } from './kifParser';
 
 // DFS でクイズ対象局面を収集する（root 除外）
 // 1) children >= 2 かつ非打ち駒あり（複数候補局面）
-// 2) children == 1（非打ち駒）かつその子への相手応手が 2 以上（重要局面）
+// 2) children == 1（非打ち駒）かつ（孫 >= 2 OR 子にコメントあり）（重要局面）
 export function collectQuizPositions(root: GameNode): GameNode[] {
   const result: GameNode[] = [];
   function dfs(node: GameNode) {
@@ -11,7 +11,8 @@ export function collectQuizPositions(root: GameNode): GameNode[] {
         const hasNonDrop = node.children.some(c => !c.isDrop);
         if (hasNonDrop) result.push(node);
       } else if (node.children.length === 1 && !node.children[0]!.isDrop) {
-        if (node.children[0]!.children.length >= 2) result.push(node);
+        const child = node.children[0]!;
+        if (child.children.length >= 2 || child.comment) result.push(node);
       }
     }
     for (const child of node.children) dfs(child);
