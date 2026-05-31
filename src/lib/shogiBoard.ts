@@ -77,9 +77,3 @@ export function buildBoardState(path: GameNode[]): BoardState {
   }
   return state;
 }
-
-// 相手側から見た場合の盤面を返す（後手視点）
-export function flipBoard(state: BoardState): BoardState {
-  const board = state.board.slice().reverse().map(row => row.slice().reverse());
-  return { ...state, board };
-}
