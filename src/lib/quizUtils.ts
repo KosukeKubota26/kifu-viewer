@@ -20,21 +20,45 @@ export function collectQuizPositions(root: GameNode): GameNode[] {
   return result;
 }
 
+// サブツリー内の全評価値から nextPlayer 視点の最良値を返す
+function bestEvalInSubtree(node: GameNode, nextPlayer: 'sente' | 'gote'): number | undefined {
+  const evals: number[] = [];
+  function dfs(n: GameNode) {
+    if (n.evaluation !== undefined) evals.push(n.evaluation);
+    for (const c of n.children) dfs(c);
+  }
+  dfs(node);
+  if (evals.length === 0) return undefined;
+  return nextPlayer === 'sente' ? Math.max(...evals) : Math.min(...evals);
+}
+
 // 次の手番視点で最善の子ノードを返す
-// 評価値がない子が混在する場合は評価値を持つ子のみで比較; 全員無評価なら children[0]
+// 1) 直接評価値を持つ子のみで比較
+// 2) 全員直接評価なし → サブツリー内最良評価でフォールバック
+// 3) それもなければ children[0]（主変化）
 export function getBestChild(parent: GameNode): GameNode {
   const children = parent.children;
   if (children.length === 1) return children[0]!;
 
-  const withEval = children.filter(c => c.evaluation !== undefined);
-  if (withEval.length === 0) return children[0]!;
-
-  // 次に指す側のプレイヤー（全 children で共通）
   const nextPlayer = children[0]!.player;
+  const withEval = children.filter(c => c.evaluation !== undefined);
 
-  return withEval.reduce((best, c) => {
-    const bv = best.evaluation!;
-    const cv = c.evaluation!;
-    return nextPlayer === 'sente' ? (cv > bv ? c : best) : (cv < bv ? c : best);
-  });
+  if (withEval.length > 0) {
+    return withEval.reduce((best, c) => {
+      const bv = best.evaluation!;
+      const cv = c.evaluation!;
+      return nextPlayer === 'sente' ? (cv > bv ? c : best) : (cv < bv ? c : best);
+    });
+  }
+
+  // 直接評価なし → サブツリー最良評価でフォールバック
+  const withSubEval = children
+    .map(c => ({ c, ev: bestEvalInSubtree(c, nextPlayer) }))
+    .filter(x => x.ev !== undefined) as { c: GameNode; ev: number }[];
+
+  if (withSubEval.length === 0) return children[0]!;
+
+  return withSubEval.reduce((best, cur) =>
+    nextPlayer === 'sente' ? (cur.ev > best.ev ? cur : best) : (cur.ev < best.ev ? cur : best)
+  ).c;
 }
